@@ -1,0 +1,13 @@
+# Example policy for Portsense risk classification
+allowed_ports: [80, 443]
+dangerous_ports: [22, 23, 445, 3389, 3306, 5432, 6379]
+conditional_ports: [5900, 5985, 5986]
+
+service_weights:
+  admin: 50
+  db: 45
+  internal: 35
+  web: 25
+  unknown: 15
+
+version_exposure_weight: 10

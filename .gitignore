@@ -1,0 +1,60 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# =========================
+# Virtual Environment
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# Packaging / Build
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# Test / Coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Logs / Runtime output
+# =========================
+*.log
+out/
+reports/
+
+# =========================
+# Scan inputs / samples
+# (raw scan data, optional to commit)
+# =========================
+samples/*.xml
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Secrets / Config
+# =========================
+.env
+.env.*
+config.local.yml
