@@ -15,6 +15,9 @@ from .report.jsonout import render_json
 from .report.markdown import render_markdown
 from .config import Policy
 
+from .external.shodan import lookup_ip
+
+
 
 app = typer.Typer(help="Portsense — Port scan analysis tool (scaffold)")
 
@@ -50,14 +53,27 @@ def analyze(
     # Parse each input into normalized host results
     env_results = [parse_nmap_xml(p) for p in input]
 
+    shodan_ports = None
+    try:
+        target_host = None
+        if env_results and env_results[0].findings:
+            target_host = env_results[0].findings[0].ip
+
+        if target_host:
+            shodan_ports = lookup_ip(target_host)
+
+    except Exception as e:
+        typer.echo(f"[!] Shodan lookup failed: {e}")
+
+
     # Merge and assess per finding using the built-in logic
-    assessments: List[FindingAssessment] = merge_assessments(env_results, Policy())
+    assessments: List[FindingAssessment] = merge_assessments(env_results, Policy(), shodan_ports=shodan_ports)
 
     target = ", ".join(str(p) for p in input)
     report = ReportModel(
         target=target,
         generated_at=generated_at,
-        summary_hosts=len({a.finding.host for a in assessments}),
+        summary_hosts=len({a.finding.ip for a in assessments}),
         summary_open_ports=sum(1 for a in assessments if (a.finding.state or "").lower() == "open"),
         summary_findings=len(assessments),
         assessments=assessments,

@@ -12,8 +12,8 @@ from ..models import (
 )
 from ..config import Policy
 from .risk import assess_port_risk
-
 from .osint import compare_ports
+
 
 
 def assess_confidence(scan: ScanResult) -> ConfidenceAssessment:
@@ -116,43 +116,19 @@ def compute_env_confidence(env_results: Iterable[HostScanResult]) -> Dict[Key, C
 
     return results
 
-def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy, shodan_ports: list[int] | None = None) -> List[FindingAssessment]:
-
-    """Merge findings across environments and attach risk + confidence ratings.
-
-    - Match findings by (ip/host, port, protocol)
-    - Choose a representative finding for the key (prefer an open one with richer metadata)
-    - Assess risk using policy and attach computed confidence
-    """
-    envs: List[HostScanResult] = list(env_results)
+def merge_assessments(env_results, policy, shodan_ports=None):
+    envs = list(env_results)
     conf_map = compute_env_confidence(envs)
 
-    # Build representatives per key
-    reps: Dict[Key, PortFinding] = {}
+    reps = {}
     for env in envs:
         for f in env.findings:
             key = _key_for_finding(f)
-            current = reps.get(key)
-            if current is None:
-                reps[key] = f
-                continue
-            # Prefer open state; if tie, prefer one with product/version/service info
-            def richness(x: PortFinding) -> int:
-                r = 0
-                if (x.state or "").lower() == "open":
-                    r += 10
-                if x.version:
-                    r += 3
-                if x.product:
-                    r += 2
-                if x.service:
-                    r += 1
-                return r
-
-            if richness(f) > richness(current):
+            if key not in reps:
                 reps[key] = f
 
-    assessments: List[FindingAssessment] = []
+    assessments = []
+
     for key, finding in reps.items():
         risk = assess_port_risk(finding, policy)
         conf = conf_map.get(key)
@@ -162,14 +138,14 @@ def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy, sho
                 level="Low",
                 rationale=["No data"],
                 env_count=len(envs),
-                open_count=0
+                open_count=0,
             )
 
+        # --- Shodan evidence 추가 ---
         if shodan_ports is not None:
-            local_ports = [finding.port]
-            shodan_result = compare_ports(local_ports, shodan_ports)
+            result = compare_ports([finding.port], shodan_ports)
 
-            if finding.port in shodan_result and shodan_result[finding.port] == "high":
+            if finding.port in result and result[finding.port] == "high":
                 conf.rationale.append("Also observed via Shodan (external OSINT)")
             else:
                 conf.rationale.append("Not observed via Shodan")
@@ -178,6 +154,10 @@ def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy, sho
             FindingAssessment(
                 finding=finding,
                 risk=risk,
-                confidence=conf
+                confidence=conf,
             )
         )
+
+    return assessments
+
+

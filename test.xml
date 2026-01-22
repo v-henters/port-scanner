@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///C:/Program Files (x86)/Nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.98 scan initiated Fri Jan 23 05:24:06 2026 as: &quot;C:\\Program Files (x86)\\Nmap\\nmap.exe&quot; -sT -p 80,443,53 -oX test.xml 8.8.8.8 -->
+<nmaprun scanner="nmap" args="&quot;C:\\Program Files (x86)\\Nmap\\nmap.exe&quot; -sT -p 80,443,53 -oX test.xml 8.8.8.8" start="1769113446" startstr="Fri Jan 23 05:24:06 2026" version="7.98" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="3" services="53,80,443"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="8.8.8.8" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+<host starttime="1769113447" endtime="1769113450"><status state="up" reason="syn-ack" reason_ttl="120"/>
+<address addr="8.8.8.8" addrtype="ipv4"/>
+<hostnames>
+<hostname name="dns.google" type="PTR"/>
+</hostnames>
+<ports><port protocol="tcp" portid="53"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="domain" method="table" conf="3"/></port>
+<port protocol="tcp" portid="80"><state state="filtered" reason="no-response" reason_ttl="0"/><service name="http" method="table" conf="3"/></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="https" method="table" conf="3"/></port>
+</ports>
+<times srtt="32531" rttvar="20125" to="113031"/>
+</host>
+<runstats><finished time="1769113450" timestr="Fri Jan 23 05:24:10 2026" summary="Nmap done at Fri Jan 23 05:24:10 2026; 1 IP address (1 host up) scanned in 4.80 seconds" elapsed="4.80" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

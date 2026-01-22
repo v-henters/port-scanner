@@ -1,20 +1,16 @@
-
-from typing import List, Dict
-
-def compare_ports(local_ports: List[int], shodan_ports: List[int]) -> Dict[int, str]:
+def compare_ports(local_ports: list[int], shodan_ports: list[int]) -> dict[int, str]:
     """
-    로컬 스캔 결과와 Shodan 결과를 비교해서
-    포트별 신뢰도(high / medium)를 반환
+    Compare local scan ports with Shodan observed ports.
+    Returns: {port: "high" | "low"}
     """
-
     result = {}
 
-    all_ports = set(local_ports + shodan_ports)
+    shodan_set = set(shodan_ports)
 
-    for port in all_ports:
-        if port in local_ports and port in shodan_ports:
+    for port in local_ports:
+        if port in shodan_set:
             result[port] = "high"
         else:
-            result[port] = "medium"
+            result[port] = "low"
 
     return result

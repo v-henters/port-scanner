@@ -105,7 +105,12 @@ def render_markdown(*args, top_n: int = 10) -> str:
                 buf.write(
                     f"| {f.port} | {f.protocol} | {f.service or ''} | {f.state} | {a.risk.level} | {a.confidence.level} |\n"
                 )
+                if a.confidence.rationale:
+                    for r in a.confidence.rationale:
+                        buf.write(f"> - {r}\n")
             buf.write("\n")
+                
+
         return buf.getvalue()
 
     if len(args) == 3 and isinstance(args[0], ScanResult):
