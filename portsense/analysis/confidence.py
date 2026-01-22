@@ -13,6 +13,8 @@ from ..models import (
 from ..config import Policy
 from .risk import assess_port_risk
 
+from .osint import compare_ports
+
 
 def assess_confidence(scan: ScanResult) -> ConfidenceAssessment:
     """Heuristic confidence score based on data richness.
@@ -114,8 +116,8 @@ def compute_env_confidence(env_results: Iterable[HostScanResult]) -> Dict[Key, C
 
     return results
 
+def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy, shodan_ports: list[int] | None = None) -> List[FindingAssessment]:
 
-def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy) -> List[FindingAssessment]:
     """Merge findings across environments and attach risk + confidence ratings.
 
     - Match findings by (ip/host, port, protocol)
@@ -154,11 +156,28 @@ def merge_assessments(env_results: Iterable[HostScanResult], policy: Policy) -> 
     for key, finding in reps.items():
         risk = assess_port_risk(finding, policy)
         conf = conf_map.get(key)
-        if conf is None:
-            # Should not happen, but ensure a default Low
-            conf = ConfidenceRating(level="Low", rationale=["No data"], env_count=len(envs), open_count=0)
-        assessments.append(
-            FindingAssessment(finding=finding, risk=risk, confidence=conf)
-        )
 
-    return assessments
+        if conf is None:
+            conf = ConfidenceRating(
+                level="Low",
+                rationale=["No data"],
+                env_count=len(envs),
+                open_count=0
+            )
+
+        if shodan_ports is not None:
+            local_ports = [finding.port]
+            shodan_result = compare_ports(local_ports, shodan_ports)
+
+            if finding.port in shodan_result and shodan_result[finding.port] == "high":
+                conf.rationale.append("Also observed via Shodan (external OSINT)")
+            else:
+                conf.rationale.append("Not observed via Shodan")
+
+        assessments.append(
+            FindingAssessment(
+                finding=finding,
+                risk=risk,
+                confidence=conf
+            )
+        )
