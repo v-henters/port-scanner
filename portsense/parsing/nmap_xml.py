@@ -104,3 +104,19 @@ def parse_nmap_xml(path: Path) -> HostScanResult:
             )
 
     return HostScanResult(meta=meta, findings=findings)
+
+
+def extract_nmap_hostnames(path: Path) -> list[str]:
+    """Extract hostnames from Nmap XML hostnames entries."""
+    tree = ET.parse(str(path))
+    root = tree.getroot()
+    hostnames: list[str] = []
+    for host_elem in root.findall("host"):
+        hostnames_elem = host_elem.find("hostnames")
+        if hostnames_elem is None:
+            continue
+        for hostname_elem in hostnames_elem.findall("hostname"):
+            name = _get_attr(hostname_elem, "name")
+            if name:
+                hostnames.append(name)
+    return hostnames

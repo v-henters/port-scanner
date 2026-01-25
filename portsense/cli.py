@@ -10,7 +10,13 @@ from .models import (
     FindingAssessment,
 )
 from .parsing.nmap_xml import parse_nmap_xml
+from .parsing.nmap_xml import extract_nmap_hostnames
 from .analysis import confidence
+from .dns_resolution import (
+    extract_targets_from_args,
+    resolve_targets,
+    append_dns_confidence_rationale,
+)
 from .report.jsonout import render_json
 from .report.markdown import render_markdown
 from .config import Policy
@@ -50,6 +56,8 @@ def analyze(
         help="Minimum risk level to capture screenshots for (info/low/medium/high/critical).",
         show_default=True,
     ),
+    dns: bool = typer.Option(False, "--dns", help="Enable DNS resolution for targets."),
+    dns_timeout: float = typer.Option(2.0, "--dns-timeout", help="DNS resolution timeout in seconds."),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -63,6 +71,16 @@ def analyze(
 
     # Merge and assess per finding using the built-in logic
     assessments: List[FindingAssessment] = confidence.merge_assessments(env_results, Policy())
+    dns_resolution = None
+    # Usage: python -m portsense.cli analyze --input scan.xml --outdir out --dns
+    if dns:
+        targets: List[str] = []
+        for env in env_results:
+            targets.extend(extract_targets_from_args(env.meta.args))
+        for path in input:
+            targets.extend(extract_nmap_hostnames(path))
+        dns_resolution = resolve_targets(targets, dns_timeout)
+        append_dns_confidence_rationale(assessments, dns_resolution)
 
     target = ", ".join(str(p) for p in input)
     report = ReportModel(
@@ -72,6 +90,7 @@ def analyze(
         summary_open_ports=sum(1 for a in assessments if (a.finding.state or "").lower() == "open"),
         summary_findings=len(assessments),
         assessments=assessments,
+        dns_resolution=dns_resolution,
     )
 
     # Ensure output directory
