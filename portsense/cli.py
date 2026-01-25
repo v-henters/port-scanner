@@ -11,7 +11,7 @@ from .models import (
 )
 from .parsing.nmap_xml import parse_nmap_xml
 from .parsing.nmap_xml import extract_nmap_hostnames
-from .analysis.confidence import merge_assessments
+from .analysis import confidence
 from .dns_resolution import (
     extract_targets_from_args,
     resolve_targets,
@@ -70,7 +70,7 @@ def analyze(
     env_results = [parse_nmap_xml(p) for p in input]
 
     # Merge and assess per finding using the built-in logic
-    assessments: List[FindingAssessment] = merge_assessments(env_results, Policy())
+    assessments: List[FindingAssessment] = confidence.merge_assessments(env_results, Policy())
     dns_resolution = None
     # Usage: python -m portsense.cli analyze --input scan.xml --outdir out --dns
     if dns:
