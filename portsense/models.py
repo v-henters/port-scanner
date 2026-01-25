@@ -105,6 +105,17 @@ class FindingAssessment(BaseModel):
     confidence: ConfidenceRating
 
 
+class DnsResolutionEntry(BaseModel):
+    target: str
+    type: Literal["domain", "ip"]
+    a: List[str] = Field(default_factory=list)
+    aaaa: List[str] = Field(default_factory=list)
+    status: Literal["ok", "failed", "skipped"]
+    error: Optional[str] = None
+    resolved_at: Optional[str] = None
+    method: Optional[str] = None
+
+
 class ReportModel(BaseModel):
     target: str
     generated_at: datetime
@@ -112,3 +123,4 @@ class ReportModel(BaseModel):
     summary_open_ports: int
     summary_findings: int
     assessments: List[FindingAssessment] = Field(default_factory=list)
+    dns_resolution: Optional[List[DnsResolutionEntry]] = None

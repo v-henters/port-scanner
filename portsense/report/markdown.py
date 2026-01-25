@@ -42,6 +42,23 @@ def render_markdown(*args, top_n: int = 10) -> str:
             f"Medium: {counts.get('Medium', 0)} | Low: {counts.get('Low', 0)} | Info: {counts.get('Info', 0)}\n\n"
         )
 
+        if report.dns_resolution:
+            buf.write("## DNS Resolution\n\n")
+            for entry in report.dns_resolution:
+                if entry.status == "ok":
+                    a_val = ", ".join(entry.a) if entry.a else "none"
+                    aaaa_val = ", ".join(entry.aaaa) if entry.aaaa else "none"
+                    buf.write(
+                        f"- {entry.target} ({entry.type}): A={a_val} | AAAA={aaaa_val} | "
+                        f"Resolved: {entry.resolved_at} | Method: {entry.method}\n"
+                    )
+                elif entry.status == "skipped":
+                    buf.write(f"- {entry.target} ({entry.type}): skipped (IP target)\n")
+                else:
+                    err = entry.error or "unknown error"
+                    buf.write(f"- {entry.target} ({entry.type}): failed ({err})\n")
+            buf.write("\n")
+
         if not report.assessments:
             buf.write("No findings.\n")
             return buf.getvalue()

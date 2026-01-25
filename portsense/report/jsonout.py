@@ -21,6 +21,8 @@ def render_json(*args) -> str:
     if len(args) == 1 and isinstance(args[0], ReportModel):
         report: ReportModel = args[0]
         data = report.model_dump(mode="python")
+        if report.dns_resolution is None:
+            data.pop("dns_resolution", None)
         return json.dumps(data, indent=2, default=str)
 
     if len(args) == 3 and isinstance(args[0], ScanResult):
