@@ -103,6 +103,15 @@ class FindingAssessment(BaseModel):
     finding: PortFinding
     risk: RiskRating
     confidence: ConfidenceRating
+    # Optional evidence for this finding (e.g., web screenshots)
+    class Evidence(BaseModel):
+        url: Optional[str] = None
+        screenshot_path: Optional[str] = None  # prefer relative to outdir
+        captured_at: Optional[datetime] = None
+        status: Optional[Literal["ok", "failed", "skipped"]] = None
+        error: Optional[str] = None
+
+    evidence: Optional[Evidence] = None
 
 
 class ReportModel(BaseModel):

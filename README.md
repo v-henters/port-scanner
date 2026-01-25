@@ -30,6 +30,30 @@ portsense --help
 
 python -m portsense --help
 
+### Screenshots (optional Selenium)
+
+웹 서비스(HTTP/HTTPS) 증적(EVIDENCE) 스크린샷 수집은 선택 기능입니다. `analyze` 명령에 다음 옵션을 사용할 수 있습니다.
+
+- `--screenshots/--no-screenshots` (기본: 비활성)
+- `--screenshot-top N` (기본: 5) — 위험도 상위 N개 웹 항목만 캡처
+- `--screenshot-timeout SECONDS` (기본: 8)
+- `--screenshot-dir PATH` (기본: `<outdir>/assets/screenshots`)
+
+동작 개요:
+- 포트 상태가 `open`이고 위험도가 `High` 또는 `Critical`이며 서비스가 웹(http/https)으로 추정되는 항목만 캡처합니다.
+- URL은 `scheme://host:port` 형식입니다. 포트 443/8443 또는 서비스가 https면 https를 사용합니다.
+- 실패해도 보고서 생성은 계속되며, 증적에 `status` 및 `error`가 기록됩니다.
+
+Selenium은 선택 의존성입니다. 설치되어 있지 않으면 스크린샷 수집은 건너뛰고(`skipped`) 보고서는 정상 생성됩니다.
+
+간단한 예:
+
+python -m portsense.cli analyze \
+  -i samples/sample.xml \
+  --outdir out \
+  --screenshots \
+  --screenshot-top 3
+
 ## Basic Example
 
 Nmap XML 결과 파일을 분석하는 기본 예시:

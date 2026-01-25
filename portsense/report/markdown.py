@@ -88,6 +88,17 @@ def render_markdown(*args, top_n: int = 10) -> str:
             buf.write(line + "\n")
             if rec:
                 buf.write(f"  - Recommended action: {rec}\n")
+            # Evidence (if any)
+            ev = getattr(a, "evidence", None)
+            if ev:
+                url = ev.url or ""
+                path = ev.screenshot_path or ""
+                ts = ev.captured_at
+                status = ev.status or ""
+                err = f"; error: {ev.error}" if ev and ev.error else ""
+                buf.write(
+                    f"  - Evidence: URL: {url} | Screenshot: {path} | captured_at: {ts} | status: {status}{err}\n"
+                )
         buf.write("\n")
 
         # Per-host tables
@@ -105,6 +116,16 @@ def render_markdown(*args, top_n: int = 10) -> str:
                 buf.write(
                     f"| {f.port} | {f.protocol} | {f.service or ''} | {f.state} | {a.risk.level} | {a.confidence.level} |\n"
                 )
+                ev = getattr(a, "evidence", None)
+                if ev:
+                    url = ev.url or ""
+                    path = ev.screenshot_path or ""
+                    ts = ev.captured_at
+                    status = ev.status or ""
+                    err = f"; error: {ev.error}" if ev and ev.error else ""
+                    buf.write(
+                        f"  - Evidence: URL: {url} | Screenshot: {path} | captured_at: {ts} | status: {status}{err}\n"
+                    )
             buf.write("\n")
         return buf.getvalue()
 

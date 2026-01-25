@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import typer
 
@@ -10,10 +10,11 @@ from .models import (
     FindingAssessment,
 )
 from .parsing.nmap_xml import parse_nmap_xml
-from .analysis.confidence import merge_assessments
+from .analysis import confidence
 from .report.jsonout import render_json
 from .report.markdown import render_markdown
 from .config import Policy
+from .evidence.screenshots import collect_web_screenshots
 
 
 app = typer.Typer(help="Portsense — Port scan analysis tool (scaffold)")
@@ -39,6 +40,16 @@ def analyze(
         [], "--env-name", help="Environment name for each input (provide in the same order as --input)."),
     top_n: int = typer.Option(10, "--top-n", help="Top N risky findings to include in Markdown report."),
     outdir: Path = typer.Option(Path("./out"), "--outdir", help="Output directory for reports."),
+    screenshots: bool = typer.Option(False, "--screenshots/--no-screenshots", help="Capture web screenshots as evidence (optional).", show_default=True),
+    screenshot_top: int = typer.Option(5, "--screenshot-top", help="Max number of web screenshots to capture."),
+    screenshot_timeout: int = typer.Option(8, "--screenshot-timeout", help="Page load timeout (seconds)."),
+    screenshot_dir: Optional[Path] = typer.Option(None, "--screenshot-dir", help="Directory to store screenshots (default: <outdir>/assets/screenshots)"),
+    screenshot_min_risk: str = typer.Option(
+        "high",
+        "--screenshot-min-risk",
+        help="Minimum risk level to capture screenshots for (info/low/medium/high/critical).",
+        show_default=True,
+    ),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -51,7 +62,7 @@ def analyze(
     env_results = [parse_nmap_xml(p) for p in input]
 
     # Merge and assess per finding using the built-in logic
-    assessments: List[FindingAssessment] = merge_assessments(env_results, Policy())
+    assessments: List[FindingAssessment] = confidence.merge_assessments(env_results, Policy())
 
     target = ", ".join(str(p) for p in input)
     report = ReportModel(
@@ -65,6 +76,33 @@ def analyze(
 
     # Ensure output directory
     outdir.mkdir(parents=True, exist_ok=True)
+
+    # Screenshots collection (optional)
+    if screenshots:
+        shots_dir = screenshot_dir or (outdir / "assets" / "screenshots")
+        try:
+            # Normalize risk string to title-case expected by collector
+            risk_map = {
+                "info": "Info",
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High",
+                "critical": "Critical",
+            }
+            min_risk_norm = risk_map.get((screenshot_min_risk or "").lower(), "High")
+            collect_web_screenshots(
+                report,
+                outdir=outdir,
+                screenshot_dir=shots_dir,
+                top_n=screenshot_top,
+                timeout=screenshot_timeout,
+                driver_factory=None,
+                min_risk=min_risk_norm,  # type: ignore[arg-type]
+            )
+        except Exception as e:
+            # Do not fail the run due to evidence collection
+            typer.echo(f"[screenshots] collection failed: {e}", err=True)
+
     json_path = outdir / "report.json"
     md_path = outdir / "report.md"
 
