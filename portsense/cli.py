@@ -21,6 +21,8 @@ from .report.jsonout import render_json
 from .report.markdown import render_markdown
 from .config import Policy
 from .evidence.screenshots import collect_web_screenshots
+from .vuln.nuclei_parser import parse_nuclei_findings
+from .vuln.nvd import NVDClient
 
 
 app = typer.Typer(help="Portsense — Port scan analysis tool (scaffold)")
@@ -58,6 +60,9 @@ def analyze(
     ),
     dns: bool = typer.Option(False, "--dns", help="Enable DNS resolution for targets."),
     dns_timeout: float = typer.Option(2.0, "--dns-timeout", help="DNS resolution timeout in seconds."),
+    cve_enrich: bool = typer.Option(True, "--cve-enrich/--no-cve-enrich", help="Enrich Nuclei findings with CVE/CVSS data from NVD."),
+    nvd_timeout: int = typer.Option(10, "--nvd-timeout", help="NVD API timeout in seconds."),
+    nvd_cache_dir: Optional[Path] = typer.Option(None, "--nvd-cache-dir", help="Directory for NVD cache."),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -92,6 +97,32 @@ def analyze(
         assessments=assessments,
         dns_resolution=dns_resolution,
     )
+
+    # CVE Enrichment (if nuclei results exist)
+    nuclei_jsonl = outdir / "nuclei" / "results.jsonl"
+    # Actually, we should probably check if nuclei was enabled or if the file exists.
+    # For now, let's follow the requirement: extract from parsed nuclei findings.
+    if nuclei_jsonl.exists():
+        vuln_findings = parse_nuclei_findings(nuclei_jsonl)
+        if cve_enrich:
+            cache_path = nvd_cache_dir or (outdir / "cache" / "nvd")
+            nvd = NVDClient(cache_dir=cache_path, timeout=nvd_timeout)
+            
+            # Deduplicate CVE IDs to avoid redundant API calls
+            cve_cache = {}
+            for vf in vuln_findings:
+                if vf.cve and vf.cve.id:
+                    cve_id = vf.cve.id
+                    if cve_id not in cve_cache:
+                        cve_cache[cve_id] = nvd.get_cve_data(cve_id)
+                    vf.cve.cvss = cve_cache[cve_id]
+        
+        report.vulnerability_findings = vuln_findings
+        report.nuclei = {
+            "enabled": True,
+            "results_path": str(nuclei_jsonl),
+            "finding_count": len(vuln_findings)
+        }
 
     # Ensure output directory
     outdir.mkdir(parents=True, exist_ok=True)

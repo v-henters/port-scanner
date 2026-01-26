@@ -118,6 +118,29 @@ def render_markdown(*args, top_n: int = 10) -> str:
                 )
         buf.write("\n")
 
+        # Nuclei findings (vulnerability_findings)
+        if report.vulnerability_findings:
+            buf.write("## Vulnerability Findings (Nuclei)\n\n")
+            buf.write("| Template | Name | Severity | Host | CVE | CVSS |\n")
+            buf.write("|:---------|:-----|:---------|:-----|:----|:-----|\n")
+            for v in report.vulnerability_findings:
+                cve_str = "N/A"
+                cvss_str = "N/A"
+                if v.cve:
+                    cve_str = v.cve.id
+                    if v.cve.cvss:
+                        if v.cve.cvss.status == "unavailable":
+                            cvss_str = "N/A"
+                        else:
+                            score = v.cve.cvss.score if v.cve.cvss.score is not None else 0.0
+                            sev = v.cve.cvss.severity or "Unknown"
+                            cvss_str = f"{score} ({sev})"
+                
+                buf.write(
+                    f"| {v.template_id} | {v.name} | {v.severity} | {v.host} | {cve_str} | {cvss_str} |\n"
+                )
+            buf.write("\n")
+
         # Per-host tables
         buf.write("## Findings by Host\n\n")
         by_host: Dict[str, List] = defaultdict(list)
