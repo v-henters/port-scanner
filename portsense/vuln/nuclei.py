@@ -7,6 +7,9 @@ from typing import List, Optional, Set
 from ..models import FindingAssessment, NucleiFinding, NucleiSummary
 
 
+from .nuclei_parser import parse_nuclei_findings
+
+
 def extract_nuclei_urls(assessments: List[FindingAssessment]) -> List[str]:
     """
     Extracts deduplicated URLs from findings for Nuclei scanning.
@@ -107,43 +110,4 @@ def run_nuclei(
 
 
 def parse_nuclei_jsonl(path: Path) -> List[NucleiFinding]:
-    findings = []
-    if not path.exists():
-        return findings
-        
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data = json.loads(line)
-                info = data.get("info", {})
-                
-                # Extract references/CVEs
-                references = info.get("reference") or []
-                if isinstance(references, str):
-                    references = [references]
-                classification = info.get("classification", {})
-                cve_id = classification.get("cve-id")
-                if cve_id:
-                    if isinstance(cve_id, list):
-                        references.extend(cve_id)
-                    else:
-                        references.append(cve_id)
-
-                finding = NucleiFinding(
-                    template_id=data.get("template-id", "unknown"),
-                    name=info.get("name", "unknown"),
-                    severity=info.get("severity", "unknown"),
-                    matched_at=data.get("matched-at", ""),
-                    host=data.get("host", ""),
-                    extracted_results=data.get("extracted-results") or [],
-                    reference=references
-                )
-                findings.append(finding)
-            except Exception:
-                # Skip malformed lines
-                continue
-                
-    return findings
+    return parse_nuclei_findings(path)

@@ -60,6 +60,9 @@ class NVDClient:
                     cache_file = self.cache_dir / f"{cve_id}.json"
                     cache_file.write_text(json.dumps(data), encoding="utf-8")
                 return self._parse_nvd_response(data)
+            elif response.status_code == 404:
+                logger.warning(f"CVE {cve_id} not found in NVD.")
+                return CvssData(status="unavailable")
             else:
                 logger.error(f"Failed to fetch {cve_id} from NVD: HTTP {response.status_code}")
         except Exception as e:
@@ -96,6 +99,7 @@ class NVDClient:
 
     def _extract_cvss_metric(self, metric: Dict[str, Any], version: str) -> CvssData:
         cvss_data = metric.get("cvssData", {})
+        # NVD v2 API uses different fields than v1
         return CvssData(
             version=version,
             score=cvss_data.get("baseScore"),

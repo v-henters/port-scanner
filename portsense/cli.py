@@ -22,6 +22,7 @@ from .report.markdown import render_markdown
 from .config import Policy
 from .evidence.screenshots import collect_web_screenshots
 from .vuln.nuclei import extract_nuclei_urls, run_nuclei, parse_nuclei_jsonl
+from .vuln.nvd import NVDClient
 
 
 app = typer.Typer(help="Portsense — Port scan analysis tool (scaffold)")
@@ -67,6 +68,9 @@ def analyze(
     nuclei_templates: Optional[Path] = typer.Option(None, "--nuclei-templates", help="Path to Nuclei templates directory or file."),
     nuclei_tags: Optional[str] = typer.Option(None, "--nuclei-tags", help="Nuclei tags filter."),
     nuclei_rate_limit: Optional[int] = typer.Option(None, "--nuclei-rate-limit", help="Nuclei rate limit (requests per second)."),
+    cve_enrich: bool = typer.Option(True, "--cve-enrich/--no-cve-enrich", help="Enrich Nuclei findings with CVE/CVSS data from NVD.", show_default=True),
+    nvd_timeout: int = typer.Option(10, "--nvd-timeout", help="NVD API timeout in seconds."),
+    nvd_cache_dir: Optional[Path] = typer.Option(None, "--nvd-cache-dir", help="Directory for NVD cache (default: <outdir>/cache/nvd/)."),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -151,6 +155,26 @@ def analyze(
         
         if urls:
             findings = parse_nuclei_jsonl(n_jsonl)
+            
+            if cve_enrich:
+                typer.echo("[nuclei] enriching findings with CVE data from NVD...")
+                nvd_cache = nvd_cache_dir or (outdir / "cache" / "nvd")
+                client = NVDClient(cache_dir=nvd_cache, timeout=nvd_timeout)
+                
+                # Deduplicate CVE IDs across all findings to minimize API calls
+                cve_to_data = {}
+                for f in findings:
+                    if f.cve and f.cve.id:
+                        cve_to_data[f.cve.id] = None
+                
+                for cve_id in cve_to_data:
+                    cve_to_data[cve_id] = client.get_cve_data(cve_id)
+                
+                # Attach enriched data back to findings
+                for f in findings:
+                    if f.cve and f.cve.id in cve_to_data:
+                        f.cve.cvss = cve_to_data[f.cve.id]
+
             report.vulnerability_findings = findings
             report.nuclei.finding_count = len(findings)
             typer.echo(f"[nuclei] finished: {len(findings)} findings from {len(urls)} URLs.")

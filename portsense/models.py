@@ -137,6 +137,20 @@ class ReportModel(BaseModel):
     vulnerability_findings: List[NucleiFinding] = Field(default_factory=list)
 
 
+class CvssData(BaseModel):
+    version: Optional[str] = None
+    score: Optional[float] = None
+    severity: Optional[str] = None
+    vector: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[str] = None  # "unavailable" if fetch fails
+
+
+class CveData(BaseModel):
+    id: str
+    cvss: Optional[CvssData] = None
+
+
 class NucleiFinding(BaseModel):
     template_id: str
     name: str
@@ -145,6 +159,7 @@ class NucleiFinding(BaseModel):
     host: Optional[str] = None
     extracted_results: List[str] = Field(default_factory=list)
     reference: List[str] = Field(default_factory=list)
+    cve: Optional[CveData] = None
 
 
 class NucleiSummary(BaseModel):
