@@ -59,6 +59,26 @@ def render_markdown(*args, top_n: int = 10) -> str:
                     buf.write(f"- {entry.target} ({entry.type}): failed ({err})\n")
             buf.write("\n")
 
+        if report.nuclei:
+            buf.write("## Vulnerability Findings (Nuclei)\n\n")
+            n = report.nuclei
+            buf.write(f"- Enabled: {n.enabled}\n")
+            buf.write(f"- URLs scanned: {n.url_count}\n")
+            buf.write(f"- Findings: {n.finding_count}\n")
+            if n.error:
+                buf.write(f"- Error: {n.error}\n")
+            buf.write("\n")
+
+            if report.vulnerability_findings:
+                buf.write("| Template ID | Name | Severity | Matched At |\n")
+                buf.write("|:------------|:-----|:---------|:-----------|\n")
+                # Sort by severity
+                n_sev_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0, "unknown": -1}
+                sorted_v = sorted(report.vulnerability_findings, key=lambda x: n_sev_rank.get(x.severity.lower(), -1), reverse=True)
+                for v in sorted_v:
+                    buf.write(f"| {v.template_id} | {v.name} | {v.severity} | {v.matched_at} |\n")
+                buf.write("\n")
+
         if not report.assessments:
             buf.write("No findings.\n")
             return buf.getvalue()

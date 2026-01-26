@@ -133,3 +133,26 @@ class ReportModel(BaseModel):
     summary_findings: int
     assessments: List[FindingAssessment] = Field(default_factory=list)
     dns_resolution: Optional[List[DnsResolutionEntry]] = None
+    nuclei: Optional[NucleiSummary] = None
+    vulnerability_findings: List[NucleiFinding] = Field(default_factory=list)
+
+
+class NucleiFinding(BaseModel):
+    template_id: str
+    name: str
+    severity: str
+    matched_at: str
+    host: Optional[str] = None
+    extracted_results: List[str] = Field(default_factory=list)
+    reference: List[str] = Field(default_factory=list)
+
+
+class NucleiSummary(BaseModel):
+    enabled: bool = False
+    url_count: int = 0
+    finding_count: int = 0
+    results_path: Optional[str] = None
+    error: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    exit_code: Optional[int] = None

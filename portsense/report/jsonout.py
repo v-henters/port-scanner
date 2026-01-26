@@ -23,6 +23,9 @@ def render_json(*args) -> str:
         data = report.model_dump(mode="python")
         if report.dns_resolution is None:
             data.pop("dns_resolution", None)
+        if report.nuclei is None:
+            data.pop("nuclei", None)
+            data.pop("vulnerability_findings", None)
         return json.dumps(data, indent=2, default=str)
 
     if len(args) == 3 and isinstance(args[0], ScanResult):
