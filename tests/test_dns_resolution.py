@@ -32,7 +32,7 @@ def _run_cli_with_dns(tmp_path: Path) -> dict:
     xml_path = tmp_path / "scan.xml"
     xml_path.write_text(SAMPLE_XML_DOMAIN.strip(), encoding="utf-8")
     outdir = tmp_path / "out"
-    result = runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir), "--dns"])
+    result = runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir), "--dns", "--overwrite"])
     assert result.exit_code == 0, result.output
     return json.loads((outdir / "report.json").read_text(encoding="utf-8"))
 

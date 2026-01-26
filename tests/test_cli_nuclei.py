@@ -53,7 +53,8 @@ def test_cli_nuclei_integration(mock_popen):
             "analyze", 
             "-i", str(xml_path), 
             "--outdir", str(outdir),
-            "--nuclei"
+            "--nuclei",
+            "--overwrite"
         ])
         
         assert result.exit_code == 0

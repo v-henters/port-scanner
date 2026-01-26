@@ -87,6 +87,7 @@ def test_cli_screenshots_smoke(tmp_path: Path, monkeypatch):
             "--screenshots",
             "--screenshot-dir",
             str(shotdir),
+            "--overwrite",
         ],
     )
 

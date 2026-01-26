@@ -40,3 +40,33 @@ def test_report_renderers_json_and_markdown():
     assert "Findings by Host" in md
     assert "| Port |" in md
     assert "22" in md and "High" in md
+
+
+def test_report_timestamps_and_latest_pointer():
+    from typer.testing import CliRunner
+    from portsense.cli import app
+    from pathlib import Path
+    import tempfile
+    import time
+
+    sample_xml = """<?xml version="1.0"?><nmaprun scanner="nmap" args="nmap" start="1704067200" version="7.94"><host><address addr="127.0.0.1" addrtype="ipv4"/><ports><port portid="80" protocol="tcp"><state state="open" reason="syn-ack"/><service name="http"/></port></ports></host></nmaprun>"""
+    
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        xml_path = td_path / "scan.xml"
+        xml_path.write_text(sample_xml, encoding="utf-8")
+        outdir = td_path / "out"
+        
+        # First run
+        runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir)])
+        ts_files_1 = list(outdir.glob("report_[0-9]*.json"))
+        assert len(ts_files_1) == 1
+        assert (outdir / "report_latest.json").exists()
+        
+        # Second run after small delay for new timestamp
+        time.sleep(1.1)
+        runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir)])
+        ts_files_2 = list(outdir.glob("report_[0-9]*.json"))
+        assert len(ts_files_2) == 2
+        assert (outdir / "report_latest.json").exists()

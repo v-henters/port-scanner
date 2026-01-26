@@ -67,6 +67,7 @@ def analyze(
     nuclei_templates: Optional[Path] = typer.Option(None, "--nuclei-templates", help="Path to Nuclei templates directory or file."),
     nuclei_tags: Optional[str] = typer.Option(None, "--nuclei-tags", help="Nuclei tags filter."),
     nuclei_rate_limit: Optional[int] = typer.Option(None, "--nuclei-rate-limit", help="Nuclei rate limit (requests per second)."),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing report.json and report.md instead of creating timestamped files."),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -74,6 +75,7 @@ def analyze(
         raise typer.Exit(2)
 
     generated_at = datetime.now()
+    timestamp = generated_at.strftime("%Y%m%d_%H%M%S")
 
     # Parse each input into normalized host results
     env_results = [parse_nmap_xml(p) for p in input]
@@ -134,7 +136,13 @@ def analyze(
     # Nuclei integration (optional)
     if nuclei:
         typer.echo("[nuclei] starting vulnerability scan...")
-        n_jsonl = nuclei_jsonl or (outdir / "nuclei" / "results.jsonl")
+        if nuclei_jsonl:
+            n_jsonl = nuclei_jsonl
+        elif overwrite:
+            n_jsonl = outdir / "nuclei" / "results.jsonl"
+        else:
+            n_jsonl = outdir / "nuclei" / f"results_{timestamp}.jsonl"
+
         urls = extract_nuclei_urls(assessments)
         
         summary = run_nuclei(
@@ -157,14 +165,36 @@ def analyze(
         else:
             typer.echo("[nuclei] no web endpoints found to scan.")
 
-    json_path = outdir / "report.json"
-    md_path = outdir / "report.md"
+    if overwrite:
+        json_path = outdir / "report.json"
+        md_path = outdir / "report.md"
+        
+        json_content = render_json(report)
+        json_path.write_text(json_content, encoding="utf-8")
+        
+        md_content = render_markdown(report, top_n=top_n)
+        md_path.write_text(md_content, encoding="utf-8")
+        
+        typer.echo(f"Written: {json_path}")
+        typer.echo(f"Written: {md_path}")
+    else:
+        json_ts_path = outdir / f"report_{timestamp}.json"
+        md_ts_path = outdir / f"report_{timestamp}.md"
+        json_latest_path = outdir / "report_latest.json"
+        md_latest_path = outdir / "report_latest.md"
 
-    json_path.write_text(render_json(report), encoding="utf-8")
-    md_path.write_text(render_markdown(report, top_n=top_n), encoding="utf-8")
+        json_content = render_json(report)
+        json_ts_path.write_text(json_content, encoding="utf-8")
+        json_latest_path.write_text(json_content, encoding="utf-8")
 
-    typer.echo(f"Written: {json_path}")
-    typer.echo(f"Written: {md_path}")
+        md_content = render_markdown(report, top_n=top_n)
+        md_ts_path.write_text(md_content, encoding="utf-8")
+        md_latest_path.write_text(md_content, encoding="utf-8")
+
+        typer.echo(f"Written: {json_ts_path}")
+        typer.echo(f"Written: {json_latest_path}")
+        typer.echo(f"Written: {md_ts_path}")
+        typer.echo(f"Written: {md_latest_path}")
 
 
 def main():

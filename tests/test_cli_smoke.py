@@ -35,7 +35,7 @@ def test_cli_analyze_smoke_writes_reports():
         xml_path.write_text(SAMPLE_XML.strip(), encoding="utf-8")
 
         outdir = td_path / "out"
-        result = runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir)])
+        result = runner.invoke(app, ["analyze", "-i", str(xml_path), "--outdir", str(outdir), "--overwrite"])
 
         assert result.exit_code == 0, result.output
         assert (outdir / "report.json").exists()
