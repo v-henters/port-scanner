@@ -21,8 +21,7 @@ from .report.jsonout import render_json
 from .report.markdown import render_markdown
 from .config import Policy
 from .evidence.screenshots import collect_web_screenshots
-from .vuln.nuclei_parser import parse_nuclei_findings
-from .vuln.nvd import NVDClient
+from .vuln.nuclei import extract_nuclei_urls, run_nuclei, parse_nuclei_jsonl
 
 
 app = typer.Typer(help="Portsense — Port scan analysis tool (scaffold)")
@@ -60,9 +59,14 @@ def analyze(
     ),
     dns: bool = typer.Option(False, "--dns", help="Enable DNS resolution for targets."),
     dns_timeout: float = typer.Option(2.0, "--dns-timeout", help="DNS resolution timeout in seconds."),
-    cve_enrich: bool = typer.Option(True, "--cve-enrich/--no-cve-enrich", help="Enrich Nuclei findings with CVE/CVSS data from NVD."),
-    nvd_timeout: int = typer.Option(10, "--nvd-timeout", help="NVD API timeout in seconds."),
-    nvd_cache_dir: Optional[Path] = typer.Option(None, "--nvd-cache-dir", help="Directory for NVD cache."),
+    nuclei: bool = typer.Option(False, "--nuclei/--no-nuclei", help="Run Nuclei scans against discovered web endpoints.", show_default=True),
+    nuclei_severity: str = typer.Option("critical,high,medium", "--nuclei-severity", help="Nuclei severity filter."),
+    nuclei_timeout: int = typer.Option(120, "--nuclei-timeout", help="Nuclei timeout in seconds."),
+    nuclei_jsonl: Optional[Path] = typer.Option(None, "--nuclei-jsonl", help="Path to save Nuclei JSONL results (default: <outdir>/nuclei/results.jsonl)."),
+    nuclei_bin: str = typer.Option("nuclei", "--nuclei-bin", help="Path to Nuclei binary."),
+    nuclei_templates: Optional[Path] = typer.Option(None, "--nuclei-templates", help="Path to Nuclei templates directory or file."),
+    nuclei_tags: Optional[str] = typer.Option(None, "--nuclei-tags", help="Nuclei tags filter."),
+    nuclei_rate_limit: Optional[int] = typer.Option(None, "--nuclei-rate-limit", help="Nuclei rate limit (requests per second)."),
 ):
     """Analyze one or more local scan files and write JSON and Markdown reports."""
     if env_name and len(env_name) != len(input):
@@ -98,32 +102,6 @@ def analyze(
         dns_resolution=dns_resolution,
     )
 
-    # CVE Enrichment (if nuclei results exist)
-    nuclei_jsonl = outdir / "nuclei" / "results.jsonl"
-    # Actually, we should probably check if nuclei was enabled or if the file exists.
-    # For now, let's follow the requirement: extract from parsed nuclei findings.
-    if nuclei_jsonl.exists():
-        vuln_findings = parse_nuclei_findings(nuclei_jsonl)
-        if cve_enrich:
-            cache_path = nvd_cache_dir or (outdir / "cache" / "nvd")
-            nvd = NVDClient(cache_dir=cache_path, timeout=nvd_timeout)
-            
-            # Deduplicate CVE IDs to avoid redundant API calls
-            cve_cache = {}
-            for vf in vuln_findings:
-                if vf.cve and vf.cve.id:
-                    cve_id = vf.cve.id
-                    if cve_id not in cve_cache:
-                        cve_cache[cve_id] = nvd.get_cve_data(cve_id)
-                    vf.cve.cvss = cve_cache[cve_id]
-        
-        report.vulnerability_findings = vuln_findings
-        report.nuclei = {
-            "enabled": True,
-            "results_path": str(nuclei_jsonl),
-            "finding_count": len(vuln_findings)
-        }
-
     # Ensure output directory
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -152,6 +130,32 @@ def analyze(
         except Exception as e:
             # Do not fail the run due to evidence collection
             typer.echo(f"[screenshots] collection failed: {e}", err=True)
+
+    # Nuclei integration (optional)
+    if nuclei:
+        typer.echo("[nuclei] starting vulnerability scan...")
+        n_jsonl = nuclei_jsonl or (outdir / "nuclei" / "results.jsonl")
+        urls = extract_nuclei_urls(assessments)
+        
+        summary = run_nuclei(
+            urls=urls,
+            output_jsonl=n_jsonl,
+            bin_path=nuclei_bin,
+            severity=nuclei_severity,
+            timeout=nuclei_timeout,
+            templates=nuclei_templates,
+            tags=nuclei_tags,
+            rate_limit=nuclei_rate_limit,
+        )
+        report.nuclei = summary
+        
+        if urls:
+            findings = parse_nuclei_jsonl(n_jsonl)
+            report.vulnerability_findings = findings
+            report.nuclei.finding_count = len(findings)
+            typer.echo(f"[nuclei] finished: {len(findings)} findings from {len(urls)} URLs.")
+        else:
+            typer.echo("[nuclei] no web endpoints found to scan.")
 
     json_path = outdir / "report.json"
     md_path = outdir / "report.md"

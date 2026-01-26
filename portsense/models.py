@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal
 
 from pydantic import BaseModel, Field
 
@@ -125,30 +125,6 @@ class DnsResolutionEntry(BaseModel):
     method: Optional[str] = None
 
 
-class CvssData(BaseModel):
-    version: Optional[str] = None
-    score: Optional[float] = None
-    severity: Optional[str] = None
-    vector: Optional[str] = None
-    source: Optional[str] = None
-    status: Optional[str] = None  # e.g., "unavailable"
-
-
-class CveData(BaseModel):
-    id: str
-    cvss: Optional[CvssData] = None
-
-
-class VulnerabilityFinding(BaseModel):
-    template_id: str
-    name: str
-    severity: str
-    host: str
-    matched_at: str
-    cve: Optional[CveData] = None
-    info: Dict[str, Any] = Field(default_factory=dict)
-
-
 class ReportModel(BaseModel):
     target: str
     generated_at: datetime
@@ -157,5 +133,26 @@ class ReportModel(BaseModel):
     summary_findings: int
     assessments: List[FindingAssessment] = Field(default_factory=list)
     dns_resolution: Optional[List[DnsResolutionEntry]] = None
-    vulnerability_findings: List[VulnerabilityFinding] = Field(default_factory=list)
-    nuclei: Optional[Dict[str, Any]] = None
+    nuclei: Optional[NucleiSummary] = None
+    vulnerability_findings: List[NucleiFinding] = Field(default_factory=list)
+
+
+class NucleiFinding(BaseModel):
+    template_id: str
+    name: str
+    severity: str
+    matched_at: str
+    host: Optional[str] = None
+    extracted_results: List[str] = Field(default_factory=list)
+    reference: List[str] = Field(default_factory=list)
+
+
+class NucleiSummary(BaseModel):
+    enabled: bool = False
+    url_count: int = 0
+    finding_count: int = 0
+    results_path: Optional[str] = None
+    error: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    exit_code: Optional[int] = None
